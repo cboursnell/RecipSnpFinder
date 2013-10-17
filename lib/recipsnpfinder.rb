@@ -178,42 +178,42 @@ if !opts.test
     end
     value.each do |snp_hash|
       output += "#{key}\t#{snp_hash[:name]}\t#{snp_hash[:target_chrom]}\t#{snp_hash[:target_coord]}\t#{snp_hash[:origin_chrom]}\t#{snp_hash[:origin_coord]}\t#{snp_hash[:pos]}\n"
-      # if !sum_hash.has_key?(snp_hash[:target_chrom])
-      #   sum_hash[snp_hash[:target_chrom]] = Hash.new
-      # end
-      # if !sum_hash[snp_hash[:target_chrom]].has_key?(snp_hash[:target_coord])
-      #   sum_hash[snp_hash[:target_chrom]][snp_hash[:target_coord]] = Hash.new
-      # end
-      # if !sum_hash[snp_hash[:target_chrom]][snp_hash[:target_coord]].has_key?(snp_hash[:origin_chrom])
-      #   sum_hash[snp_hash[:target_chrom]][snp_hash[:target_coord]][snp_hash[:origin_chrom]]=Hash.new
-      # end
-      # if !sum_hash[snp_hash[:target_chrom]][snp_hash[:target_coord]][snp_hash[:origin_chrom]].has_key?(snp_hash[:origin_coord])
-      #   sum_hash[snp_hash[:target_chrom]][snp_hash[:target_coord]][snp_hash[:origin_chrom]][snp_hash[:origin_coord]]=0
-      # end
-      # sum_hash[snp_hash[:target_chrom]][snp_hash[:target_coord]][snp_hash[:origin_chrom]][snp_hash[:origin_coord]]+=1
+      if !sum_hash.has_key?(snp_hash[:target_chrom])
+        sum_hash[snp_hash[:target_chrom]] = Hash.new
+      end
+      if !sum_hash[snp_hash[:target_chrom]].has_key?(snp_hash[:target_coord])
+        sum_hash[snp_hash[:target_chrom]][snp_hash[:target_coord]] = Hash.new
+      end
+      if !sum_hash[snp_hash[:target_chrom]][snp_hash[:target_coord]].has_key?(snp_hash[:origin_chrom])
+        sum_hash[snp_hash[:target_chrom]][snp_hash[:target_coord]][snp_hash[:origin_chrom]]=Hash.new
+      end
+      if !sum_hash[snp_hash[:target_chrom]][snp_hash[:target_coord]][snp_hash[:origin_chrom]].has_key?(snp_hash[:origin_coord])
+        sum_hash[snp_hash[:target_chrom]][snp_hash[:target_coord]][snp_hash[:origin_chrom]][snp_hash[:origin_coord]]=0
+      end
+      sum_hash[snp_hash[:target_chrom]][snp_hash[:target_coord]][snp_hash[:origin_chrom]][snp_hash[:origin_coord]]+=1
     end
   end
 
-  # sum_output=""
-  # sum_hash.each_pair do |key,value|
-  #   # puts "target chromosome: #{key}"
-  #   value.each_pair do |key2, value2|
-  #     # puts "  target coord: #{key2}"
-  #     value2.each_pair do |key3, value3|
-  #       # puts "    origin chromosome: #{key3}"
-  #       value3.each_pair do |key4, value4|
-  #         sum_output += "#{key}\t#{key2}\t#{key3}\t#{key4}\t#{value4}\n"
-  #       end
-  #     end
-  #   end
-  # end
+  sum_output=""
+  sum_hash.each_pair do |key,value|
+    # puts "target chromosome: #{key}"
+    value.each_pair do |key2, value2|
+      # puts "  target coord: #{key2}"
+      value2.each_pair do |key3, value3|
+        # puts "    origin chromosome: #{key3}"
+        value3.each_pair do |key4, value4|
+          sum_output += "#{key}\t#{key2}\t#{key3}\t#{key4}\t#{value4}\n"
+        end
+      end
+    end
+  end
   puts "Done"
 
   # write output to file
 
   print "Writing output to file..."
   File.open("#{opts.output}", "w") {|file| file.write(output)}
-  # File.open("sum_#{opts.output}", "w") {|file| file.write(sum_output)}
+  File.open("sum_#{opts.output}", "w") {|file| file.write(sum_output)}
   puts "Done"
 
   finish_time = Time.now
