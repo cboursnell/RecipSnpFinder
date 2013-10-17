@@ -96,6 +96,17 @@ class SnpFinder
     end
   end
 
+  def vcf_file_exists
+    tmp = @left.split("/").last.split(".").first # tmp is a name like 'pooled'
+    @target_index = @target.split("/").last.split(".").first
+    @origin_index = @origin.split("/").last.split(".").first
+    if File.exists?("#{@dir}/#{@target_index}-#{tmp}.vcf")
+      return true
+    else
+      return false
+    end
+  end
+
   def load_vcf_file
     tmp = @left.split("/").last.split(".").first # tmp is a name like 'pooled'
     @vcfHash = Hash.new

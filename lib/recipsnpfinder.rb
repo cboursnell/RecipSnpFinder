@@ -33,11 +33,17 @@ Trollop::die :right,  "must exist"    if !File.exist?(opts[:right])  if opts[:ri
 Trollop::die :output, "mustn't exist" if File.exist?(opts[:output])  if opts[:output]
 
 snpfinder = SnpFinder.new opts.origin, opts.target, opts.left, opts.right, opts.cores, opts.output, opts.test, opts.verbose
-snpfinder.create_origin_index
+if !snpfinder.vcf_file_exists
+  snpfinder.create_origin_index
+  snpfinder.create_target_index
+end
+
 snpfinder.align_origin
-snpfinder.create_target_index
 snpfinder.align_target
-snpfinder.snp_call
+
+if !snpfinder.vcf_file_exists
+  snpfinder.snp_call
+end
 
 if !opts.test
   puts "Loading vcf file" if opts.verbose
@@ -55,8 +61,8 @@ if !opts.test
 
   #debugging
   # sam_target = "nivara-pooled-100k.sam"
-  sam_target = "barthii-pooled-10m.sam"
-  sam_origin = "sativa-pooled-10m.sam"
+  # sam_target = "barthii-pooled-10m.sam"
+  # sam_origin = "sativa-pooled-10m.sam"
 
   target_fh = File.open("#{dir}/#{sam_target}", "r")
   origin_fh = File.open("#{dir}/#{sam_origin}", "r")
