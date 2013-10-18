@@ -19,7 +19,8 @@ class TestRecipSnpFinder < Test::Unit::TestCase
       @list_of_snps << Vcf.new("nivara_3s	2979750	2979750	A	C	15	Q20;GOF	BRF=0.23;FR=0.5000;HP=1;HapScore=1;MGOF=52;MMLQ=33;NF=4;NR=0;PP=15;RMSMQ=39.52;SC=CCGCGGCAGCAGCATCATGAA;SbPval=1.0;Source=Platypus;TC=24;TCF=22;TCR=2;TR=4	GT:GL:GOF:GQ:NR:NV	0/1:-5.58,0.0,-84.18:52:56:24:4")
       @list_of_snps << Vcf.new("nivara_3s	3979750	3979750	A	C	15	Q20;GOF	BRF=0.23;FR=0.5000;HP=1;HapScore=1;MGOF=52;MMLQ=33;NF=4;NR=0;PP=15;RMSMQ=39.52;SC=CCGCGGCAGCAGCATCATGAA;SbPval=1.0;Source=Platypus;TC=24;TCF=22;TCR=2;TR=4	GT:GL:GOF:GQ:NR:NV	0/1:-5.58,0.0,-84.18:52:56:24:4")
 
-      # @snpfinder = SnpFinder.new "origin.fasta", "target.fasta", "left.fastq", "right.fastq", 4, "output", true, true
+      #def initialize            (origin,         target,          left,          right,   cores,  output, test, verbose)
+      @snpfinder = SnpFinder.new "sativa.fasta", "barthii.fasta", "pooled.l.fq", "pooled.r.fq", 4, "output", false, true
     end
 
     should "find a snp" do
