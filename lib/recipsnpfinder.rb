@@ -132,6 +132,7 @@ if !opts.test
           outputHash[key_read_name] = {:target_chrom=>t1.chrom, :origin_chrom=>o1.chrom, :target_coord=>snp_coord, :pos=>pos, :origin_coord=>origin_coord, :k=>k}
         end
       end
+
       # 2nd pair of reads
       if t2.read_mapped? and o2.read_mapped? 
         k = t2.find_snp(snpfinder.list_of_snps(t2.chrom))
@@ -145,6 +146,7 @@ if !opts.test
           outputHash[key_read_name] = {:target_chrom=>t2.chrom, :origin_chrom=>o2.chrom, :target_coord=>snp_coord,:origin_coord=>origin_coord, :k=>k} #  :pos=>pos, 
         end
       end
+
     else
       abort "lines are out of sync at #{count}"
     end
@@ -154,7 +156,6 @@ if !opts.test
     origin_line2 = origin_fh.readline rescue nil
   end
 
-  # result = RubyProf.stop
 
   # build output
   sum_hash = Hash.new
