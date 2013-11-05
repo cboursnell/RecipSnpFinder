@@ -28,6 +28,10 @@ public
     parse_line(line) unless line.nil?
   end
 
+  def reinit(line=nil)
+    parse_line(line) unless line.nil?
+  end
+
   def parse_line(line)
     return false if line[0] == "@"
     
@@ -49,7 +53,7 @@ public
     # @mpos = int_or_neg1(f[7])
     # @insert = int_or_raw(f[8])
     @seq = f[9]
-    @qual = f[10]
+    # @qual = f[10]
 
     # @tags = {}
     # i = 11

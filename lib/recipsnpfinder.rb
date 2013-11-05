@@ -28,16 +28,14 @@ Trollop::die :right,  "must exist"    if !File.exist?(opts[:right])  if opts[:ri
 Trollop::die :output, "mustn't exist" if File.exist?(opts[:output])  if opts[:output]
 
 snpfinder = SnpFinder.new opts.origin, opts.target, opts.left, opts.right, opts.cores, opts.output, opts.test, opts.verbose
-if !snpfinder.vcf_file_exists
-  snpfinder.create_origin_index
-  snpfinder.create_target_index
-end
 
 snpfinder.align_origin
 snpfinder.align_target
 
 if !snpfinder.vcf_file_exists
   snpfinder.snp_call
+else
+  puts "vcf file already exists" if opts.verbose
 end
 
 if !opts.test
@@ -52,15 +50,16 @@ if !opts.test
   tmp = opts.left.split("/").last.split(".").first
   sam_origin = "#{origin_index}-#{tmp}.sam"
 
-  dir = opts.target.split("/")[0..-2].join("/")
+  target_dir = opts.target.split("/")[0..-2].join("/")
+  origin_dir = opts.origin.split("/")[0..-2].join("/")
 
   #debugging
   # sam_target = "nivara-pooled-1000k.sam"
-  sam_origin = "sativa-pooled-10m.sam"
-  sam_target = "barthii-pooled-10m.sam"
+  # sam_origin = "sativa-pooled-10m.sam"
+  # sam_target = "barthii-pooled-10m.sam"
 
-  target_fh = File.open("#{dir}/#{sam_target}", "r")
-  origin_fh = File.open("#{dir}/#{sam_origin}", "r")
+  target_fh = File.open("#{target_dir}/#{sam_target}", "r")
+  origin_fh = File.open("#{origin_dir}/#{sam_origin}", "r")
 
   target_line1 = target_fh.readline
   while target_line1 =~ /^@/ # skip comments
@@ -76,15 +75,21 @@ if !opts.test
   origin_line2 = origin_fh.readline
   count=0
 
-  outputHash = Hash.new
+  # outputHash = Hash.new
+  outputList = Array.new
   puts "Finding sam file length" if opts.verbose
-  cmd = "wc -l #{dir}/#{sam_target}"
+  cmd = "wc -l #{target_dir}/#{sam_target}"
   
   lines = `#{cmd}`
   sam_line_count = lines.to_i
-  # sam_line_count = 100000
-  puts "#{cmd} #{sam_line_count}"
+  # sam_line_count = 140178899
+  puts "#{cmd} = #{sam_line_count}"
 
+
+  t1 = BetterSam.new # line 1 from the target sam # could this be speed up by not creating
+  t2 = BetterSam.new # line 2 from the target sam # a new bettersam object each time
+  o1 = BetterSam.new # line 1 from the origin sam # and reusing ones from previous runs?
+  o2 = BetterSam.new # line 2 from the origin sam
 
   # RubyProf.start
 
@@ -93,19 +98,19 @@ if !opts.test
   puts "Start time is #{start_time}"
   while target_line1!=nil and origin_line1!=nil and target_line2!=nil and origin_line2!=nil
     count+=2
-    if count % 100000==0
+    if count % 1_000_000==0
       print "#{100*count/sam_line_count}%.. "
       previous_time = progress_time
       progress_time = Time.now
       lines_to_go = sam_line_count - count
       time_taken = progress_time - start_time
       time_to_go = time_taken * lines_to_go / count
-      puts "time left: #{time_to_go}\teta: #{progress_time+time_to_go}\t#{progress_time-previous_time}"
+      puts "time left: #{time_to_go}\teta: #{progress_time+time_to_go}\t#{progress_time-previous_time}" if opts.verbose
     end
-    t1 = BetterSam.new(target_line1) # line 1 from the target sam
-    t2 = BetterSam.new(target_line2) # line 2 from the target sam
-    o1 = BetterSam.new(origin_line1) # line 1 from the origin sam
-    o2 = BetterSam.new(origin_line2) # line 2 from the origin sam
+    t1.reinit(target_line1) 
+    t2.reinit(target_line2) 
+    o1.reinit(origin_line1) 
+    o2.reinit(origin_line2) 
 
     if t1.name == t2.name and o1.name == o2.name and t1.name == o1.name # if the lines are correctly paired
       if t2.first_in_pair?
@@ -128,8 +133,8 @@ if !opts.test
           pos = t1.mark_snp(snp_coord)
           o1.transfer_snp(t1)
           origin_coord = o1.put_snp
-          key_read_name = (t1.name+"/1").to_sym
-          outputHash[key_read_name] = {:target_chrom=>t1.chrom, :origin_chrom=>o1.chrom, :target_coord=>snp_coord, :pos=>pos, :origin_coord=>origin_coord, :k=>k}
+          # key_read_name = (t1.name+"/1").to_sym
+          outputList << {:target_chrom=>t1.chrom, :origin_chrom=>o1.chrom, :target_coord=>snp_coord, :origin_coord=>origin_coord, :k=>k}
         end
       end
 
@@ -142,8 +147,8 @@ if !opts.test
           pos = t2.mark_snp(snp_coord)
           o2.transfer_snp(t2)
           origin_coord = o2.put_snp
-          key_read_name = (t2.name+"/2").to_sym
-          outputHash[key_read_name] = {:target_chrom=>t2.chrom, :origin_chrom=>o2.chrom, :target_coord=>snp_coord,:origin_coord=>origin_coord, :k=>k} #  :pos=>pos, 
+          # key_read_name = (t2.name+"/2").to_sym
+          outputList << {:target_chrom=>t2.chrom, :origin_chrom=>o2.chrom, :target_coord=>snp_coord, :origin_coord=>origin_coord, :k=>k}
         end
       end
 
@@ -159,30 +164,34 @@ if !opts.test
 
   # build output
   sum_hash = Hash.new
-  print "Building output..."
+  # print "Building output..."
   output = ""
   count=0
   start_time2 = Time.now
   progress_time=start_time2
-  size = outputHash.keys.size
-  outputHash.each_pair do |key, value|
+  # size = outputHash.keys.size
+  size = outputList.size
+
+  puts "Opening file #{opts.output} for appending" if opts.verbose
+
+  # outputHash.each_pair do |key, value|
+  outputList.each do |value|
     count+=1
     # value is a list of hashes
-    if count % 10000==0
+    if count % 1_000_000==0
       previous_time = progress_time
       progress_time = Time.now
       lines_to_go = size - count
       time_taken = progress_time - start_time2
       time_to_go = time_taken * lines_to_go / count
-      puts "#{100*count/size}%..\ttime left: #{time_to_go}\teta: #{progress_time+time_to_go}\t#{progress_time-previous_time}"
-    end
-    output << "#{key}\t#{value[:origin_chrom]}\t#{value[:origin_coord]}\t#{value[:target_chrom]}\t#{value[:target_coord]}\t#{value[:k]}\n"
+      puts "#{100*count/size}%..\ttime left: #{time_to_go}\teta: #{progress_time+time_to_go}\t#{progress_time-previous_time}" if opts.verbose
 
+    end
+    # output << "#{key}\t#{value[:origin_chrom]}\t#{value[:origin_coord]}\t#{value[:target_chrom]}\t#{value[:target_coord]}\t#{value[:k]}\n"
+    output << "#{value[:origin_chrom]}\t#{value[:origin_coord]}\t#{value[:target_chrom]}\t#{value[:target_coord]}\t#{value[:k]}\n"
   end
 
   puts "Done"
-
-  # write output to file
 
   print "Writing output to file..."
   File.open("#{opts.output}", "w") {|file| file.write(output)}

@@ -12,87 +12,123 @@ class SnpFinder
     @test = test
     @verbose = verbose
     if @origin.split("/").length > 1
-      @dir = @origin.split("/")[0..-2].join("/")
+      @origin_dir = @origin.split("/")[0..-2].join("/")
     else
-      @dir = "."
+      @origin_dir = "."
     end
-  end
-
-  def create_origin_index
-    @origin_index = @origin.split("/").last.split(".").first
-    if !File.exists?("#{@dir}/#{@origin_index}.1.bt2")
-      cmd = "bowtie2-build #{@origin} #{@dir}/#{@origin_index}"
-      puts " $ #{cmd}"
-      `#{cmd}` if !@test
+    if @target.split("/").length > 1
+      @target_dir = @target.split("/")[0..-2].join("/")
     else
-      puts "#{@dir}/#{@origin_index}.1.bt2 already exists" if @verbose
-    end
-  end
-
-  def create_target_index
-    @target_index = @target.split("/").last.split(".").first
-    if !File.exists?("#{@dir}/#{@target_index}.1.bt2")
-      cmd = "bowtie2-build #{@target} #{@dir}/#{@target_index}"
-      puts " $ #{cmd}"
-      `#{cmd}` if !@test
-    else
-      puts "#{@dir}/#{@target_index}.1.bt2 already exists" if @verbose
+      @target_dir = "."
     end
   end
 
   def align_origin
     tmp = @left.split("/").last.split(".").first # tmp is a name like 'pooled'
+    @origin_index = @origin.split("/").last.split(".").first
     @origin_sam = "#{@origin_index}-#{tmp}.sam"
 
-    if !File.exists?("#{@dir}/#{@origin_sam}")
-      cmd = "bowtie2 -t -p #{@cores} -x #{@dir}/#{@origin_index} -1 #{@left} -2 #{@right} --very-sensitive -S #{@dir}/#{@origin_sam} --reorder" 
+    if !File.exists?("#{@origin_dir}/#{@origin_sam}")
+      if !File.exists?("#{@origin_dir}/#{@origin_index}.1.bt2")
+        cmd = "bowtie2-build #{@origin} #{@origin_dir}/#{@origin_index}"
+        puts " $ #{cmd}"
+        `#{cmd}` if !@test
+      else
+        puts "#{@origin_dir}/#{@origin_index}.1.bt2 already exists" if @verbose
+      end
+
+
+      cmd = "bowtie2 -t -p #{@cores} -x #{@origin_dir}/#{@origin_index} -1 #{@left} -2 #{@right} --very-sensitive -S #{@origin_dir}/#{@origin_sam} --reorder" 
       puts " $ #{cmd}"
       `#{cmd}` if !@test
     else
-      puts "#{@dir}/#{@origin_sam} already exists" if @verbose
+      puts "#{@origin_dir}/#{@origin_sam} already exists" if @verbose
     end
   end
 
   def align_target
     tmp = @left.split("/").last.split(".").first # tmp is a name like 'pooled'
+    @target_index = @target.split("/").last.split(".").first
     @target_sam = "#{@target_index}-#{tmp}.sam"
 
-    if !File.exists?("#{@dir}/#{@target_sam}")
-      cmd = "bowtie2 -t -p #{@cores} -x #{@dir}/#{@target_index} -1 #{@left} -2 #{@right} --very-sensitive -S #{@dir}/#{@target_sam} --reorder" 
+    if !File.exists?("#{@target_dir}/#{@target_sam}")
+      if !File.exists?("#{@target_dir}/#{@target_index}.1.bt2")
+        cmd = "bowtie2-build #{@target} #{@target_dir}/#{@target_index}"
+        puts " $ #{cmd}"
+        `#{cmd}` if !@test
+      else
+        puts "#{@target_dir}/#{@target_index}.1.bt2 already exists" if @verbose
+      end
+
+      cmd = "bowtie2 -t -p #{@cores} -x #{@target_dir}/#{@target_index} -1 #{@left} -2 #{@right} --very-sensitive -S #{@target_dir}/#{@target_sam} --reorder" 
       puts " $ #{cmd}"
       `#{cmd}` if !@test
     else
-      puts "#{@dir}/#{@target_sam} already exists" if @verbose
+      puts "#{@target_dir}/#{@target_sam} already exists" if @verbose
     end
   end
 
   def snp_call
     tmp = @left.split("/").last.split(".").first # tmp is a name like 'pooled'
-    if !File.exists?("#{@dir}/#{@target_index}-#{tmp}.vcf")
+    if !File.exists?("#{@target_dir}/#{@target_index}-#{tmp}.vcf")
 
-      ### make bam file
       bam = "#{@target_sam.split(".").first}.bam"
-      cmd = "samtools view -bS -o #{@dir}/#{bam} #{@dir}/#{@target_sam}"
-      puts " $ #{cmd}"
-      `#{cmd}` if !@test
+      if !File.exists?("#{@target_dir}/#{bam}")
+        ### make bam file
+        cmd = "samtools view -bS -o #{@target_dir}/#{bam} #{@target_dir}/#{@target_sam}"
+        puts " $ #{cmd}"
+        `#{cmd}` if !@test
+      else
+        puts "#{bam} file already exists" if @verbose
+      end
+
 
       ### sort bam file
       sorted = "#{bam.split(".").first}.sorted"
-      cmd = "samtools sort #{@dir}/#{bam} #{@dir}/#{sorted}"
-      puts " $ #{cmd}"
-      `#{cmd}` if !@test
+      if !File.exists?("#{@target_dir}/#{sorted}.bam")
+        cmd = "samtools sort #{@target_dir}/#{bam} #{@target_dir}/#{sorted}"
+        puts " $ #{cmd}"
+        `#{cmd}` if !@test
+      else
+        puts "#{sorted}.bam file already exists" if @verbose
+      end
 
-      ### do snp calling
-      cmd = "samtools mpileup -uf #{@origin} #{@dir}/#{sorted}.bam | bcftools view -bvcg - > #{@dir}/#{@target_index}-#{tmp}.bcf"; 
-      puts " $ #{cmd}"
-      `#{cmd}` if !@test
+      samtools=false
+      if samtools 
+        ### do snp calling
+        cmd = "samtools mpileup -uf #{@target} #{@target_dir}/#{sorted}.bam | bcftools view -bvcg - > #{@target_dir}/#{@target_index}-#{tmp}.bcf"; 
+        puts " $ #{cmd}"
+        `#{cmd}` if !@test
 
-      ### convert bcf to vcf
-      cmd = "bcftools view #{@dir}/#{@target_index}-#{tmp}.bcf | vcfutils.pl varFilter -D100 > #{@dir}/#{@target_index}-#{tmp}.vcf";
-      puts " $ #{cmd}"
-      `#{cmd}` if !@test
+        ### convert bcf to vcf
+        cmd = "bcftools view #{@target_dir}/#{@target_index}-#{tmp}.bcf | vcfutils.pl varFilter -D100 > #{@target_dir}/#{@target_index}-#{tmp}.vcf";
+        puts " $ #{cmd}"
+        `#{cmd}` if !@test
+      else
+
+        if !File.exists?("#{@target}.fai")
+          cmd = "samtools faidx #{@target}"
+          puts cmd
+          `#{cmd}` if !@test
+        else
+          puts "#{@target}.fai already exists"
+        end
+
+        if !File.exists?("#{@target_dir}/#{sorted}.bam.bai")
+          cmd = "samtools index #{@target_dir}/#{sorted}.bam"
+          puts cmd
+          `#{cmd}` if !@test
+        else
+          puts "#{@target_dir}/#{sorted}.bam.bai already exists"
+        end
+
+        ### platypus
+        cmd = "python /home/cmb211/platypus/Platypus.py callVariants --bamFiles=#{@target_dir}/#{sorted}.bam  --output=#{@target_dir}/#{@target_index}-#{tmp}.vcf --refFile=#{@target}"
+        puts " $ #{cmd}"
+        `#{cmd}` if !@test
+      end
     else
-      puts "#{@dir}/#{@target_index}-#{tmp}.vcf vcf file already exists" if @verbose
+      puts "#{@target_dir}/#{@target_index}-#{tmp}.vcf vcf file already exists" if @verbose
     end
   end
 
@@ -100,7 +136,7 @@ class SnpFinder
     tmp = @left.split("/").last.split(".").first # tmp is a name like 'pooled'
     @target_index = @target.split("/").last.split(".").first
     @origin_index = @origin.split("/").last.split(".").first
-    if File.exists?("#{@dir}/#{@target_index}-#{tmp}.vcf")
+    if File.exists?("#{@target_dir}/#{@target_index}-#{tmp}.vcf")
       return true
     else
       return false
@@ -110,7 +146,7 @@ class SnpFinder
   def load_vcf_file
     tmp = @left.split("/").last.split(".").first # tmp is a name like 'pooled'
     @vcfHash = Hash.new
-    File.open("#{@dir}/#{@target_index}-#{tmp}.vcf", "r").each_line do |line|
+    File.open("#{@target_dir}/#{@target_index}-#{tmp}.vcf", "r").each_line do |line|
       if line !~ /^#/
         cols = line.split("\t")
         if !@vcfHash.has_key?(cols[0]) # cols[0] is the conting/chromosome the snp was found in

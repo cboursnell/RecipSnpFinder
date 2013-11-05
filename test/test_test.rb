@@ -35,8 +35,8 @@ class TestRecipSnpFinder < Test::Unit::TestCase
       assert @l1.find_snp(@list_of_snps) == 3
     end
 
-    # should "create origin index" do
-    #   @snpfinder.create_origin_index
-    # end
+    should "find correct snp" do
+      
+    end
   end
 end
