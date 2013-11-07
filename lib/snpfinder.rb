@@ -130,6 +130,10 @@ class SnpFinder
     else
       puts "#{@target_dir}/#{@target_index}-#{tmp}.vcf vcf file already exists" if @verbose
     end
+    lines = `grep -v "^@" #{@target_dir}/#{@target_index}-#{tmp}.vcf | wc -l`
+    if lines.to_i <= 1
+      abort "vcf file has no snps!"
+    end
   end
 
   def vcf_file_exists
